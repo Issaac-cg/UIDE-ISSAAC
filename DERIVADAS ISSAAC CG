@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Calculadora de Derivadas - Paso a paso</title>
+  <!-- Tailwind CSS desde CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- MathJax para fórmulas -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <!-- Math.js para cálculo simbólico -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.min.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col items-center p-6 font-sans">
+  <header class="mb-10 text-center">
+    <h1 class="text-4xl font-bold text-gray-900">Calculadora de Derivadas</h1>
+    <p class="text-gray-600 mt-2 max-w-lg mx-auto">
+      Ingresa una función y variable para obtener la derivada.  
+      Se muestran resultados en forma corta y explicación paso a paso.
+    </p>
+  </header>
+
+  <main class="bg-white shadow-lg rounded-lg p-8 w-full max-w-4xl">
+    <form id="calcForm" class="space-y-6">
+      <div>
+        <label for="funcion" class="block font-semibold text-gray-800 mb-1">Función f(x):</label>
+        <input
+          type="text"
+          id="funcion"
+          placeholder="Ejemplo: x^3 + 2*x^2 - 5*x + 7"
+          class="w-full border border-gray-300 rounded-md p-3 
+                 focus:outline-none focus:ring-2 focus:ring-blue-600"
+          required
+        />
+      </div>
+      <div>
+        <label for="variable" class="block font-semibold text-gray-800 mb-1">Variable:</label>
+        <input
+          type="text"
+          id="variable"
+          placeholder="Ejemplo: x"
+          class="w-24 border border-gray-300 rounded-md p-3 
+                 focus:outline-none focus:ring-2 focus:ring-blue-600"
+          required
+        />
+      </div>
+      <button
+        type="submit"
+        class="bg-blue-600 text-white font-semibold py-3 px-6 rounded-md 
+               hover:bg-blue-700 transition"
+      >
+        Calcular Derivada
+      </button>
+    </form>
+
+    <section class="mt-10">
+      <h2 class="text-2xl font-bold text-gray-900 mb-4">Derivada (Forma Corta)</h2>
+      <div id="resultado-corto" class="text-xl text-blue-700 min-h-[2rem]"></div>
+    </section>
+
+    <section class="mt-10">
+      <h2 class="text-2xl font-bold text-gray-900 mb-4">Derivada (Forma Larga – Paso a Paso)</h2>
+      <div
+        id="resultado-largo"
+        class="prose max-w-none text-gray-800 border border-gray-200 rounded-md p-4 bg-gray-50 min-h-[8rem]"
+      ></div>
+    </section>
+  </main>
+
+  <script>
+    // Función para generar pasos básicos de derivación (simplificado)
+    function generarPasos(expr, variable) {
+      // Función recursiva para explicar derivada de una expresión matemática de math.js
+      // Devuelve HTML con pasos explicados.
+
+      if (expr.isConstantNode) {
+        return `La derivada de la constante \\(${expr.toTex()}\\) es \\(0\\).`;
+      }
+
+      if (expr.isSymbolNode) {
+        if (expr.name === variable) {
+          return `La derivada de la variable \\(${variable}\\) respecto a sí misma es \\(1\\).`;
+        } else {
+          return `La derivada de la variable \\(${expr.name}\\) que no es la variable de derivación \\(${variable}\\) es \\(0\\).`;
+        }
+      }
+
+      if (expr.isOperatorNode) {
+        const op = expr.op;
+        const pub = expr.fn;
+        const args = expr.args;
+
+        if (op === "+") {
+          return `La derivada de una suma es la suma de las derivadas:<br>
+          \\[
+          \\frac{d}{d${variable}} \\left(${expr.toTex()}\\right) = ${args
+            .map(a => `\\frac{d}{d${variable}} (${a.toTex()})`)
+            .join(" + ")}
+          \\]<br> Y calculamos cada término: <br> ` +
+            args.map(a => generarPasos(a, variable)).join("<br><br>");
+        }
+
+        if (op === "-") {
+          return `La derivada de una resta es la resta de las derivadas:<br>
+          \\[
+          \\frac{d}{d${variable}} \\left(${expr.toTex()}\\right) = ${args
+            .map(a => `\\frac{d}{d${variable}} (${a.toTex()})`)
+            .join(" - ")}
+          \\]<br> Y calculamos cada término: <br> ` +
+            args.map(a => generarPasos(a, variable)).join("<br><br>");
+        }
+
+        if (op === "*") {
+          // Regla del producto: (fg)' = f'g + fg'
+          const f = args[0];
+          const g = args[1];
+          return `Aplicamos la regla del producto:<br>
+          \\[
+          \\frac{d}{d${variable}} \\left(${expr.toTex()}\\right) = 
+          ${f.toTex()}' \\cdot ${g.toTex()} + ${f.toTex()} \\cdot ${g.toTex()}'
+          \\]<br>
+          Derivamos cada parte:<br>
+          - \\(\\frac{d}{d${variable}}(${f.toTex()})\\): ${generarPasos(f, variable)}<br>
+          - \\(\\frac{d}{d${variable}}(${g.toTex()})\\): ${generarPasos(g, variable)}
+          `;
+        }
+
+        if (op === "/") {
+          // Regla del cociente: (f/g)' = (f'g - fg')/g^2
+          const f = args[0];
+          const g = args[1];
+          return `Aplicamos la regla del cociente:<br>
+          \\[
+          \\frac{d}{d${variable}} \\left(\\frac{${f.toTex()}}{${g.toTex()}}\\right) =
+          \\frac{${f.toTex()}' \\cdot ${g.toTex()} - ${f.toTex()} \\cdot ${g.toTex()}' }{(${g.toTex()})^2}
+          \\]<br>
+          Derivamos cada parte:<br>
+          - \\(\\frac{d}{d${variable}}(${f.toTex()})\\): ${generarPasos(f, variable)}<br>
+          - \\(\\frac{d}{d${variable}}(${g.toTex()})\\): ${generarPasos(g, variable)}
+          `;
+        }
+
+        if (op === "^") {
+          const base = args[0];
+          const exponente = args[1];
+          if (exponente.isConstantNode) {
+            // Potencia: (x^n)' = n*x^(n-1)
+            return `Regla de la potencia:<br>
+            \\[
+            \\frac{d}{d${variable}} \\left(${expr.toTex()}\\right) = ${exponente.toTex()} \\cdot ${base.toTex()}^{${exponente
+              .value - 1}}
+            \\cdot \\frac{d}{d${variable}}(${base.toTex()})
+            \\]<br>
+            Derivamos la base:<br>
+            ${generarPasos(base, variable)}
+            `;
+          } else {
+            return `Derivada de potencia con exponente variable no implementada en los pasos. Resultado directo mostrado.`;
+          }
+        }
+      }
+
+      if (expr.isFunctionNode) {
+        const fn = expr.fn.name;
+        const arg = expr.args[0];
+        if (fn === "sin") {
+          return `Derivada de \\(\\sin(${arg.toTex()})\\):<br>
+          \\[
+          \\frac{d}{d${variable}} \\sin(${arg.toTex()}) = \\cos(${arg.toTex()}) \\cdot \\frac{d}{d${variable}}(${arg.toTex()})
+          \\]<br>
+          Derivamos \\(${arg.toTex()}\\):<br>
+          ${generarPasos(arg, variable)}
+          `;
+        }
+        if (fn === "cos") {
+          return `Derivada de \\(\\cos(${arg.toTex()})\\):<br>
+          \\[
+          \\frac{d}{d${variable}} \\cos(${arg.toTex()}) = -\\sin(${arg.toTex()}) \\cdot \\frac{d}{d${variable}}(${arg.toTex()})
+          \\]<br>
+          Derivamos \\(${arg.toTex()}\\):<br>
+          ${generarPasos(arg, variable)}
+          `;
+        }
+        if (fn === "exp") {
+          return `Derivada de \\(e^{${arg.toTex()}}\\):<br>
+          \\[
+          \\frac{d}{d${variable}} e^{${arg.toTex()}} = e^{${arg.toTex()}} \\cdot \\frac{d}{d${variable}}(${arg.toTex()})
+          \\]<br>
+          Derivamos \\(${arg.toTex()}\\):<br>
+          ${generarPasos(arg, variable)}
+          `;
+        }
+        if (fn === "log") {
+          return `Derivada de \\(\\ln(${arg.toTex()})\\):<br>
+          \\[
+          \\frac{d}{d${variable}} \\ln(${arg.toTex()}) = \\frac{1}{${arg.toTex()}} \\cdot \\frac{d}{d${variable}}(${arg.toTex()})
+          \\]<br>
+          Derivamos \\(${arg.toTex()}\\):<br>
+          ${generarPasos(arg, variable)}
+          `;
+        }
+        return `Función ${fn} no tiene explicación paso a paso implementada. Resultado directo mostrado.`;
+      }
+
+      // Por defecto:
+      return "Paso a paso no disponible para esta expresión.";
+    }
+
+    document.getElementById("calcForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+
+      const funcion = document.getElementById("funcion").value.trim();
+      const variable = document.getElementById("variable").value.trim();
+
+      const resultadoCorto = document.getElementById("resultado-corto");
+      const resultadoLargo = document.getElementById("resultado-largo");
+
+      if (!funcion || !variable) {
+        resultadoCorto.textContent = "Por favor ingresa la función y la variable.";
+        resultadoLargo.textContent = "";
+        return;
+      }
+
+      try {
+        const expr = math.parse(funcion);
+        const deriv = math.derivative(expr, variable);
+
+        // Mostrar forma corta en modo LaTeX
+        resultadoCorto.innerHTML = `\\[ ${deriv.toTex()} \\]`;
+
+        // Generar texto paso a paso (HTML con LaTeX)
+        const pasosHTML = generarPasos(expr, variable);
+        resultadoLargo.innerHTML = pasosHTML;
+
+        // Renderizar con MathJax
+        MathJax.typesetPromise();
+
+      } catch (error) {
+        resultadoCorto.textContent = "Error: función no válida o variable incorrecta.";
+        resultadoLargo.textContent = "";
+      }
+    });
+  </script>
+</body>
+</html>
